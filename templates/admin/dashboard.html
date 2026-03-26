@@ -1,0 +1,226 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js — used to draw the line and bar charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+
+{% block content %}
+
+<!-- ── Stats Cards ──────────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+
+    <!-- Total Products -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-3 fs-4">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <div>
+                    <div class="text-muted small">Total Products</div>
+                    <!-- filled in by JS -->
+                    <div class="fs-4 fw-bold" id="stat-products">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Users -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="bg-success bg-opacity-10 text-success rounded-3 p-3 fs-4">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div>
+                    <div class="text-muted small">Total Users</div>
+                    <div class="fs-4 fw-bold" id="stat-users">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Orders -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-3 fs-4">
+                    <i class="bi bi-bag-check"></i>
+                </div>
+                <div>
+                    <div class="text-muted small">Total Orders</div>
+                    <div class="fs-4 fw-bold" id="stat-orders">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Revenue -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="bg-info bg-opacity-10 text-info rounded-3 p-3 fs-4">
+                    <i class="bi bi-currency-rupee"></i>
+                </div>
+                <div>
+                    <div class="text-muted small">Total Revenue</div>
+                    <div class="fs-4 fw-bold" id="stat-revenue">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /stats row -->
+
+
+<!-- ── This-Month Mini Stats ────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-muted small">New Orders This Month</div>
+                    <div class="fs-5 fw-semibold" id="stat-new-orders">—</div>
+                </div>
+                <i class="bi bi-calendar-check fs-3 text-warning opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-muted small">New Users This Month</div>
+                    <div class="fs-5 fw-semibold" id="stat-new-users">—</div>
+                </div>
+                <i class="bi bi-person-plus fs-3 text-success opacity-50"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ── Charts ───────────────────────────────────────────────────────────────── -->
+<div class="row g-3">
+
+    <!-- Orders over the last 30 days (line chart) -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold border-0 pt-3">
+                Orders — Last 30 Days
+            </div>
+            <div class="card-body">
+                <canvas id="chartOrdersTime"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top 10 categories (horizontal bar chart) -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold border-0 pt-3">
+                Top Categories
+            </div>
+            <div class="card-body">
+                <canvas id="chartCategories"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /charts row -->
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+/* ── 1. Fetch and populate the stats cards ─────────────────────────────────── */
+fetch('/admin/api/stats')
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('stat-products').textContent  = data.total_products.toLocaleString();
+        document.getElementById('stat-users').textContent     = data.total_users.toLocaleString();
+        document.getElementById('stat-orders').textContent    = data.total_orders.toLocaleString();
+        document.getElementById('stat-revenue').textContent   = '₹' + data.total_revenue.toLocaleString();
+        document.getElementById('stat-new-orders').textContent = data.new_orders.toLocaleString();
+        document.getElementById('stat-new-users').textContent  = data.new_users.toLocaleString();
+    })
+    .catch(() => {
+        // If the fetch fails, show a simple error message
+        ['stat-products','stat-users','stat-orders','stat-revenue'].forEach(id => {
+            document.getElementById(id).textContent = 'Error';
+        });
+    });
+
+
+/* ── 2. Orders Over Time — Line Chart ──────────────────────────────────────── */
+fetch('/admin/api/chart/orders_over_time')
+    .then(r => r.json())
+    .then(data => {
+        new Chart(document.getElementById('chartOrdersTime'), {
+            type: 'line',
+            data: {
+                labels: data.dates,            // ["2024-03-01", "2024-03-02", ...]
+                datasets: [{
+                    label: 'Orders',
+                    data: data.counts,          // [3, 7, 2, ...]
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                    fill: true,
+                    tension: 0.4,              // smooth curve
+                    pointRadius: 3,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 }  // whole numbers only
+                    }
+                }
+            }
+        });
+    });
+
+
+/* ── 3. Top Categories — Horizontal Bar Chart ──────────────────────────────── */
+fetch('/admin/api/chart/categories')
+    .then(r => r.json())
+    .then(data => {
+        new Chart(document.getElementById('chartCategories'), {
+            type: 'bar',
+            data: {
+                labels: data.categories,       // ["Electronics", "Computers", ...]
+                datasets: [{
+                    label: 'Products',
+                    data: data.counts,          // [450, 380, ...]
+                    backgroundColor: [
+                        '#3b82f6','#10b981','#f59e0b','#ef4444',
+                        '#8b5cf6','#ec4899','#14b8a6','#f97316',
+                        '#6366f1','#84cc16'
+                    ]
+                }]
+            },
+            options: {
+                indexAxis: 'y',    // horizontal bars — easier to read long names
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { ticks: { precision: 0 } }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

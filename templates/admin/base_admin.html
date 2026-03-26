@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin{% endblock %} | ShopKart Admin</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        /* ── Sidebar ─────────────────────────────────────────────────────── */
+        .sidebar {
+            width: 230px;
+            min-height: 100vh;
+            background-color: #1e293b;   /* dark navy */
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            padding: 0.5rem;
+        }
+
+        .sidebar .brand {
+            padding: 1.2rem 0.75rem;
+            color: #fff;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-bottom: 1px solid #334155;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Each sidebar link */
+        .sidebar .nav-link {
+            color: #94a3b8;              /* muted blue-grey */
+            padding: 0.65rem 0.75rem;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 0.9rem;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #334155;
+        }
+
+        .sidebar .nav-link i { font-size: 1rem; }
+
+        /* Logout link at the bottom of sidebar */
+        .sidebar .logout-link {
+            margin-top: auto;
+            padding-top: 0.5rem;
+            border-top: 1px solid #334155;
+        }
+
+        /* ── Main content (offset by sidebar width) ──────────────────────── */
+        .main-content {
+            margin-left: 230px;
+            min-height: 100vh;
+            background-color: #f1f5f9;
+        }
+
+        /* ── Top navbar ───────────────────────────────────────────────────── */
+        .top-navbar {
+            background-color: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0.7rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .top-navbar .page-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.95rem;
+        }
+
+        .top-navbar .admin-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #334155;
+        }
+
+        /* ── Page body padding ────────────────────────────────────────────── */
+        .page-body { padding: 1.5rem; }
+
+        /* ── Stat cards (used on dashboard) ──────────────────────────────── */
+        .stat-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+            background: #fff;
+        }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     SIDEBAR
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="sidebar">
+
+    <!-- Brand / logo -->
+    <div class="brand">
+        <i class="bi bi-shop me-1"></i> ShopKart
+    </div>
+
+    <!-- Navigation links -->
+    <nav class="nav flex-column gap-1">
+
+        <a href="{{ url_for('admin.dashboard') }}"
+           class="nav-link {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+
+        <a href="{{ url_for('admin.products_page') }}"
+           class="nav-link {% if request.endpoint == 'admin.products_page' %}active{% endif %}">
+            <i class="bi bi-box-seam"></i> Products
+        </a>
+
+        <a href="{{ url_for('admin.users_page') }}"
+           class="nav-link {% if request.endpoint == 'admin.users_page' %}active{% endif %}">
+            <i class="bi bi-people"></i> Users
+        </a>
+
+        <a href="{{ url_for('admin.orders_page') }}"
+           class="nav-link {% if request.endpoint == 'admin.orders_page' %}active{% endif %}">
+            <i class="bi bi-bag-check"></i> Orders
+        </a>
+
+        <a href="{{ url_for('analytics.index') }}"
+           class="nav-link {% if request.endpoint == 'analytics.index' %}active{% endif %}">
+            <i class="bi bi-bar-chart-line"></i> Analytics
+        </a>
+    </nav>
+
+    <!-- Logout at the very bottom of sidebar -->
+    <div class="logout-link">
+        <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger">
+            <i class="bi bi-box-arrow-left"></i> Logout
+        </a>
+    </div>
+
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MAIN CONTENT AREA
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="main-content">
+
+    <!-- Top Navbar -->
+    <div class="top-navbar">
+        <!-- Current page label (child templates can override via block) -->
+        <span class="page-label">{% block page_title %}Admin Panel{% endblock %}</span>
+
+        <!-- Logged-in admin name -->
+        <div class="admin-info">
+            <i class="bi bi-person-circle fs-5 text-muted"></i>
+            <span>{{ current_user.name }}</span>
+        </div>
+    </div>
+
+    <!-- Flash messages (e.g. errors from Flask) -->
+    <div class="page-body pb-0">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endwith %}
+    </div>
+
+    <!-- Page-specific content goes here -->
+    <div class="page-body">
+        {% block content %}{% endblock %}
+    </div>
+
+</div><!-- /main-content -->
+
+
+<!-- Bootstrap 5 JS (includes Popper for modals/dropdowns) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Child templates can add their own <script> blocks here -->
+{% block extra_scripts %}{% endblock %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+{% include "header.html" %}
+{% block title %}Product Detail | ShopKart{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* ── Layout ───────────────────────────────────────────────────────── */
+    .detail-img-wrap {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        min-height: 340px;
+    }
+
+    .detail-img-wrap img {
+        width: 100%;
+        max-height: 420px;
+        object-fit: contain;
+        padding: 1.5rem;
+    }
+
+    /* ── Price & badge ────────────────────────────────────────────────── */
+    .price-main {
+        font-size: 1.7rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .price-original {
+        font-size: 1rem;
+        color: #94a3b8;
+        text-decoration: line-through;
+    }
+
+    .badge-discount {
+        background: #dcfce7;
+        color: #15803d;
+        border-radius: 6px;
+        padding: 3px 10px;
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .badge-cat {
+        background: #e0f2fe;
+        color: #0369a1;
+        border-radius: 6px;
+        padding: 3px 10px;
+        font-size: 0.8rem;
+    }
+
+    /* ── Stars ────────────────────────────────────────────────────────── */
+    .stars-full  { color: #f59e0b; }
+    .stars-empty { color: #d1d5db; }
+
+    /* ── Description ──────────────────────────────────────────────────── */
+    .about-text {
+        font-size: 0.9rem;
+        color: #475569;
+        line-height: 1.75;
+        white-space: pre-line;
+    }
+
+    /* ── Divider ──────────────────────────────────────────────────────── */
+    .section-divider {
+        border: none;
+        border-top: 1px solid #e2e8f0;
+        margin: 2rem 0;
+    }
+
+    /* ── Feedback cards ───────────────────────────────────────────────── */
+    .review-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .review-card .reviewer-name {
+        font-weight: 600;
+        font-size: 0.88rem;
+        color: #1e293b;
+    }
+
+    .review-card .review-date {
+        font-size: 0.78rem;
+        color: #94a3b8;
+    }
+
+    .review-card .review-comment {
+        font-size: 0.88rem;
+        color: #475569;
+        margin-top: 0.35rem;
+    }
+
+    /* ── Star picker ──────────────────────────────────────────────────── */
+    .star-picker { display: flex; gap: 4px; }
+
+    .star-picker span {
+        font-size: 1.6rem;
+        color: #d1d5db;
+        cursor: pointer;
+        transition: color 0.1s;
+        line-height: 1;
+        user-select: none;
+    }
+
+    .star-picker span.selected,
+    .star-picker span.hover  { color: #f59e0b; }
+
+    /* ── Skeleton ─────────────────────────────────────────────────────── */
+    .skeleton {
+        background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.3s infinite;
+        border-radius: 6px;
+    }
+
+    @keyframes shimmer {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    /* ── Alert toast ──────────────────────────────────────────────────── */
+    #feedback-msg {
+        display: none;
+        border-radius: 8px;
+        font-size: 0.88rem;
+        padding: 0.6rem 1rem;
+        margin-top: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Back link -->
+<div class="mb-3">
+    <a href="/" class="text-muted text-decoration-none small">
+        <i class="bi bi-arrow-left me-1"></i>Back to products
+    </a>
+</div>
+
+<!-- ── Product section ──────────────────────────────────────────────────── -->
+<div class="row g-4 align-items-start" id="product-section">
+
+    <!-- Image (left) -->
+    <div class="col-12 col-md-5">
+        <div class="detail-img-wrap" id="img-wrap">
+            <div class="skeleton" style="width:100%; height:340px; border-radius:12px;"></div>
+        </div>
+    </div>
+
+    <!-- Details (right) -->
+    <div class="col-12 col-md-7" id="product-info">
+        <!-- skeleton -->
+        <div class="skeleton mb-3" style="height:28px; width:80%;"></div>
+        <div class="skeleton mb-3" style="height:18px; width:40%;"></div>
+        <div class="skeleton mb-3" style="height:22px; width:30%;"></div>
+        <div class="skeleton" style="height:80px; width:100%;"></div>
+    </div>
+
+</div>
+
+<hr class="section-divider">
+
+<!-- ── Feedback section ─────────────────────────────────────────────────── -->
+<div class="row">
+    <div class="col-12 col-lg-7">
+
+        <h6 class="fw-bold mb-3">Customer Reviews <span id="review-count" class="text-muted fw-normal"></span></h6>
+
+        <div id="reviews-list">
+            <!-- populated by JS -->
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Submit review form -->
+        <h6 class="fw-bold mb-3">Leave a Review</h6>
+        <form id="feedback-form">
+            <div class="mb-3">
+                <label class="form-label small fw-semibold text-muted">Your Rating</label>
+                <div class="star-picker" id="star-picker">
+                    <span data-v="1">★</span>
+                    <span data-v="2">★</span>
+                    <span data-v="3">★</span>
+                    <span data-v="4">★</span>
+                    <span data-v="5">★</span>
+                </div>
+                <input type="hidden" id="rating-input" value="0">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-semibold text-muted">Comment</label>
+                <textarea id="comment-input" class="form-control" rows="3"
+                          placeholder="Share your experience…" style="font-size:0.9rem; resize:none;"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm px-4" id="submit-btn">
+                Submit Review
+            </button>
+            <div id="feedback-msg" class="alert"></div>
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+    /* ── Resolve product ID from URL: /products/<id> ─────────────────── */
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const PRODUCT_ID = parseInt(pathParts[pathParts.length - 1], 10);
+
+    if (!PRODUCT_ID) return;
+
+    /* ── Star helpers ────────────────────────────────────────────────── */
+    function starsHtml(rating, size) {
+        const full  = Math.round(rating || 0);
+        const empty = 5 - full;
+        const sz    = size ? `style="font-size:${size}"` : '';
+        return `<span class="stars-full" ${sz}>${'★'.repeat(full)}</span>`
+             + `<span class="stars-empty" ${sz}>${'★'.repeat(empty)}</span>`;
+    }
+
+    /* ── Render product details ──────────────────────────────────────── */
+    function renderProduct(p) {
+        /* Image */
+        document.getElementById('img-wrap').innerHTML =
+            `<img src="${p.img_link}"
+                  alt="${p.name}"
+                  onerror="this.src='https://picsum.photos/seed/${p.id}/600/600'">`;
+
+        /* Category / sub-category badges */
+        const catBadges = [p.category, p.sub_category]
+            .filter(Boolean)
+            .map(c => `<span class="badge-cat me-1">${c}</span>`)
+            .join('');
+
+        /* Pricing row */
+        const discountBadge = p.discount_percentage
+            ? `<span class="badge-discount ms-2">${p.discount_percentage} off</span>`
+            : '';
+        const originalPrice = p.actual_price && p.actual_price > p.price
+            ? `<span class="price-original ms-2">$${p.actual_price.toFixed(2)}</span>`
+            : '';
+
+        /* Rating row */
+        const ratingCount = p.rating_count
+            ? `<span class="ms-1 text-muted small">${p.rating_count.toLocaleString()} reviews</span>`
+            : '';
+
+        /* Description */
+        const about = p.about_product
+            ? `<p class="about-text mt-1">${p.about_product}</p>`
+            : '<p class="text-muted small">No description available.</p>';
+
+        document.getElementById('product-info').innerHTML = `
+            <div class="mb-2">${catBadges}</div>
+            <h4 class="fw-bold text-dark lh-sm mb-3">${p.name}</h4>
+            <div class="d-flex align-items-center flex-wrap gap-1 mb-2">
+                <span class="price-main">$${p.price ? p.price.toFixed(2) : 'N/A'}</span>
+                ${originalPrice}
+                ${discountBadge}
+            </div>
+            <div class="d-flex align-items-center mb-3" style="font-size:1.2rem;">
+                ${starsHtml(p.rating, '1.3rem')}
+                <span class="ms-2 small text-muted fw-semibold">${p.rating ? p.rating.toFixed(1) : '—'}</span>
+                ${ratingCount}
+            </div>
+            <hr class="my-3" style="border-color:#e2e8f0;">
+            <h6 class="fw-semibold text-muted mb-1" style="font-size:0.82rem; letter-spacing:.05em; text-transform:uppercase;">About this product</h6>
+            ${about}`;
+    }
+
+    /* ── Render reviews list ─────────────────────────────────────────── */
+    function renderReviews(list) {
+        const container = document.getElementById('reviews-list');
+        document.getElementById('review-count').textContent =
+            list.length ? `(${list.length})` : '';
+
+        if (!list.length) {
+            container.innerHTML =
+                '<p class="text-muted small">No reviews yet. Be the first to review!</p>';
+            return;
+        }
+
+        container.innerHTML = list.map(f => {
+            const dateStr = f.created_at || '';
+            return `<div class="review-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <span class="reviewer-name"><i class="bi bi-person-circle me-1 text-muted"></i>${f.user_name || 'Anonymous'}</span>
+                    <span class="review-date">${dateStr}</span>
+                </div>
+                <div class="mt-1" style="font-size:1rem;">${starsHtml(f.rating)}</div>
+                <p class="review-comment mb-0">${f.comment || ''}</p>
+            </div>`;
+        }).join('');
+    }
+
+    /* ── Fetch product ───────────────────────────────────────────────── */
+    fetch(`/api/products/${PRODUCT_ID}`)
+        .then(r => {
+            if (!r.ok) throw new Error('Not found');
+            return r.json();
+        })
+        .then(data => {
+            renderProduct(data.product);
+            /* Update page title */
+            document.title = data.product.name.slice(0, 60) + ' | ShopKart';
+        })
+        .catch(() => {
+            document.getElementById('product-info').innerHTML =
+                '<div class="alert alert-danger">Failed to load product.</div>';
+            document.getElementById('img-wrap').innerHTML = '';
+        });
+
+    /* ── Fetch reviews ───────────────────────────────────────────────── */
+    function loadReviews() {
+        fetch(`/api/feedback?product_id=${PRODUCT_ID}`)
+            .then(r => r.json())
+            .then(data => renderReviews(Array.isArray(data) ? data : []))
+            .catch(() => {
+                document.getElementById('reviews-list').innerHTML =
+                    '<p class="text-muted small">Could not load reviews.</p>';
+            });
+    }
+
+    loadReviews();
+
+    /* ── Star picker ─────────────────────────────────────────────────── */
+    let selectedRating = 0;
+    const picker = document.getElementById('star-picker');
+    const ratingInput = document.getElementById('rating-input');
+    const starSpans = picker.querySelectorAll('span');
+
+    function paintStars(upTo) {
+        starSpans.forEach(s => {
+            const v = parseInt(s.dataset.v, 10);
+            s.classList.toggle('hover',    v <= upTo && v > selectedRating);
+            s.classList.toggle('selected', v <= selectedRating);
+        });
+    }
+
+    picker.addEventListener('mouseover', e => {
+        const t = e.target.closest('span');
+        if (t) paintStars(parseInt(t.dataset.v, 10));
+    });
+
+    picker.addEventListener('mouseout', () => paintStars(0));
+
+    picker.addEventListener('click', e => {
+        const t = e.target.closest('span');
+        if (!t) return;
+        selectedRating = parseInt(t.dataset.v, 10);
+        ratingInput.value = selectedRating;
+        starSpans.forEach(s => {
+            s.classList.toggle('selected', parseInt(s.dataset.v, 10) <= selectedRating);
+            s.classList.remove('hover');
+        });
+    });
+
+    /* ── Feedback form submit ────────────────────────────────────────── */
+    const form    = document.getElementById('feedback-form');
+    const msgBox  = document.getElementById('feedback-msg');
+    const submitBtn = document.getElementById('submit-btn');
+
+    function showMsg(text, type) {
+        msgBox.textContent  = text;
+        msgBox.className    = `alert alert-${type}`;
+        msgBox.style.display = 'block';
+        setTimeout(() => { msgBox.style.display = 'none'; }, 4000);
+    }
+
+    form.addEventListener('submit', e => {
+        e.preventDefault();
+
+        const comment = document.getElementById('comment-input').value.trim();
+        const rating  = parseInt(ratingInput.value, 10);
+
+        if (!rating) { showMsg('Please select a star rating.', 'warning'); return; }
+        if (!comment) { showMsg('Please write a comment.', 'warning'); return; }
+
+        submitBtn.disabled   = true;
+        submitBtn.textContent = 'Submitting…';
+
+        fetch('/api/feedback', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ product_id: PRODUCT_ID, rating, comment }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showMsg('Review submitted! Thank you.', 'success');
+                document.getElementById('comment-input').value = '';
+                selectedRating = 0;
+                ratingInput.value = 0;
+                starSpans.forEach(s => s.classList.remove('selected', 'hover'));
+                loadReviews();
+            } else {
+                showMsg(data.error || 'Something went wrong.', 'danger');
+            }
+        })
+        .catch(() => showMsg('Network error. Please try again.', 'danger'))
+        .finally(() => {
+            submitBtn.disabled   = false;
+            submitBtn.textContent = 'Submit Review';
+        });
+    });
+
+})();
+</script>
+{% endblock %}

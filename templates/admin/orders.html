@@ -1,0 +1,206 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Orders{% endblock %}
+{% block page_title %}Orders{% endblock %}
+
+
+{% block content %}
+
+<!-- ── Orders Table ─────────────────────────────────────────────────────────── -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-3">#</th>
+                    <th>Customer</th>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Total</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <!-- Rows injected by JS -->
+            <tbody id="ordersTableBody">
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-muted">
+                        <div class="spinner-border spinner-border-sm me-2"></div> Loading…
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination buttons (injected by JS) -->
+<div id="pagination" class="d-flex justify-content-center gap-2 mt-3 flex-wrap"></div>
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+/* ── State ────────────────────────────────────────────────────────────────── */
+let currentPage = 1;
+
+/* These must match the valid_statuses list in admin/routes.py */
+const STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+
+/* Bootstrap badge colour for each status — purely visual */
+const STATUS_COLOR = {
+    pending:    'bg-secondary',
+    processing: 'bg-primary',
+    shipped:    'bg-info text-dark',
+    delivered:  'bg-success',
+    cancelled:  'bg-danger',
+};
+
+
+/* ── Load orders from the API ─────────────────────────────────────────────── */
+function loadOrders(page = 1) {
+    currentPage = page;
+
+    fetch(`/admin/api/orders?page=${page}`)
+        .then(r => r.json())
+        .then(data => {
+            renderTable(data.orders);
+            renderPagination(data.page, data.pages);
+        })
+        .catch(() => {
+            document.getElementById('ordersTableBody').innerHTML =
+                '<tr><td colspan="7" class="text-center py-4 text-danger">Failed to load orders.</td></tr>';
+        });
+}
+
+
+/* ── Build the table rows ─────────────────────────────────────────────────── */
+function renderTable(orders) {
+    const tbody = document.getElementById('ordersTableBody');
+
+    if (!orders.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No orders yet.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = orders.map(o => {
+        // Shorten long product names so the table stays tidy
+        const shortProduct = o.product_name.length > 40
+            ? o.product_name.slice(0, 40) + '…'
+            : o.product_name;
+
+        // Build the <option> list for the status dropdown
+        // The current status is pre-selected
+        const statusOptions = STATUSES.map(s =>
+            `<option value="${s}" ${o.status === s ? 'selected' : ''}>${s}</option>`
+        ).join('');
+
+        // Badge colour from the map above (fallback to grey)
+        const badgeClass = STATUS_COLOR[o.status] || 'bg-secondary';
+
+        return `
+        <tr>
+            <td class="ps-3 text-muted small">#${o.id}</td>
+            <td>${escHtml(o.user_name)}</td>
+            <td class="text-muted small" title="${escHtml(o.product_name)}">
+                ${escHtml(shortProduct)}
+            </td>
+            <td>${o.quantity}</td>
+            <td>₹${o.total_price ? o.total_price.toLocaleString() : '—'}</td>
+            <td class="text-muted small">${o.date}</td>
+            <td>
+                <!--
+                    Status dropdown:
+                    When the admin picks a new value, updateStatus() is called immediately.
+                    No "Save" button needed — it sends the PUT request right away.
+                -->
+                <div class="d-flex align-items-center gap-2">
+                    <select class="form-select form-select-sm"
+                            style="width: auto; min-width: 120px;"
+                            onchange="updateStatus(${o.id}, this.value, this)">
+                        ${statusOptions}
+                    </select>
+                    <!-- Colour badge shows the current saved status -->
+                    <span class="badge ${badgeClass}" id="badge-${o.id}">
+                        ${o.status}
+                    </span>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+
+/* ── Send updated status to PUT /admin/api/orders/<oid> ───────────────────── */
+function updateStatus(oid, newStatus, selectEl) {
+    // Disable the dropdown while the request is in flight
+    // so the admin can't click again before it's done
+    selectEl.disabled = true;
+
+    fetch(`/admin/api/orders/${oid}`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ status: newStatus }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            // Update the badge colour in place without reloading the whole table
+            const badge = document.getElementById(`badge-${oid}`);
+            if (badge) {
+                badge.className = 'badge ' + (STATUS_COLOR[newStatus] || 'bg-secondary');
+                badge.textContent = newStatus;
+            }
+            selectEl.disabled = false;
+        } else {
+            alert('Status update failed. Please try again.');
+            // Re-enable so the admin can retry
+            selectEl.disabled = false;
+        }
+    })
+    .catch(() => {
+        alert('Network error. Please try again.');
+        selectEl.disabled = false;
+    });
+}
+
+
+/* ── Pagination buttons ───────────────────────────────────────────────────── */
+function renderPagination(page, pages) {
+    const div = document.getElementById('pagination');
+    if (pages <= 1) { div.innerHTML = ''; return; }
+
+    let html = '';
+    html += `<button class="btn btn-sm btn-outline-secondary"
+                     ${page === 1 ? 'disabled' : ''}
+                     onclick="loadOrders(${page - 1})">‹ Prev</button>`;
+
+    const start = Math.max(1, page - 2);
+    const end   = Math.min(pages, page + 2);
+    for (let i = start; i <= end; i++) {
+        html += `<button class="btn btn-sm ${i === page ? 'btn-primary' : 'btn-outline-secondary'}"
+                         onclick="loadOrders(${i})">${i}</button>`;
+    }
+
+    html += `<button class="btn btn-sm btn-outline-secondary"
+                     ${page === pages ? 'disabled' : ''}
+                     onclick="loadOrders(${page + 1})">Next ›</button>`;
+
+    div.innerHTML = html;
+}
+
+
+/* ── Escape HTML to prevent XSS ──────────────────────────────────────────── */
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+
+/* ── Initial load ─────────────────────────────────────────────────────────── */
+loadOrders();
+</script>
+{% endblock %}

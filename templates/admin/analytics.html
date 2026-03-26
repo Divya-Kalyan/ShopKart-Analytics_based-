@@ -1,0 +1,244 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Analytics{% endblock %}
+{% block page_title %}Analytics{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    /* ── KPI Cards ────────────────────────────────────────────────────────── */
+    .kpi-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+        padding: 1rem 1.25rem;
+        text-align: center;
+    }
+    .kpi-card h5 { font-weight: 600; margin-bottom: 0.25rem; }
+    .kpi-card p { color: #64748b; margin: 0; font-size: 0.85rem; }
+
+    /* ── Chart Cards ─────────────────────────────────────────────────────── */
+    .chart-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .chart-card h6 {
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 1rem;
+    }
+    .chart-wrapper { position: relative; height: 300px; }
+
+    #top-products-table th { background-color: #f8fafc; color: #475569; font-weight: 600; font-size: 0.85rem; }
+    #top-products-table td { font-size: 0.88rem; vertical-align: middle; }
+    .star-rating { color: #f59e0b; }
+    .badge-cat { background: #e0f2fe; color: #0369a1; border-radius: 4px; padding: 2px 8px; font-size: 0.78rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── KPI Cards Row ────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-md-3">
+        <div class="kpi-card">
+            <h5 id="kpi-products">—</h5>
+            <p>Total Products</p>
+        </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+        <div class="kpi-card">
+            <h5 id="kpi-categories">—</h5>
+            <p>Total Categories</p>
+        </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+        <div class="kpi-card">
+            <h5 id="kpi-revenue">—</h5>
+            <p>Total Revenue</p>
+        </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+        <div class="kpi-card">
+            <h5 id="kpi-rating">—</h5>
+            <p>Average Rating</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Trend Chart Row ──────────────────────────────────────────────────── -->
+<div class="row">
+    <div class="col-lg-12">
+        <div class="chart-card">
+            <h6><i class="bi bi-graph-up me-1"></i>Sales — Last 30 Days</h6>
+            <div class="chart-wrapper">
+                <canvas id="salesTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Charts Row: Category + Price + Rating ────────────────────────────── -->
+<div class="row">
+    <div class="col-lg-4">
+        <div class="chart-card">
+            <h6><i class="bi bi-tags me-1"></i>Category Distribution</h6>
+            <div class="chart-wrapper">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="chart-card">
+            <h6><i class="bi bi-currency-dollar me-1"></i>Price Distribution</h6>
+            <div class="chart-wrapper">
+                <canvas id="priceChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="chart-card">
+            <h6><i class="bi bi-star me-1"></i>Rating Distribution</h6>
+            <div class="chart-wrapper">
+                <canvas id="ratingChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Top Products Table ──────────────────────────────────────────────── -->
+<div class="row">
+    <div class="col-lg-12">
+        <div class="chart-card">
+            <h6><i class="bi bi-trophy me-1"></i>Top 10 Products by Rating</h6>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="top-products-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Product</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Rating</th>
+                            <th>Reviews</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topProductsBody">
+                        <tr><td colspan="6" class="text-center text-muted py-3">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+    
+        const PALETTE = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
+    
+        function colorList(n){
+            return Array.from({length:n},(_,i)=>PALETTE[i%PALETTE.length]);
+        }
+    
+        // ── KPI ─────────────────────────────
+        fetch('/admin/analytics/api/kpis')
+        .then(r=>r.json())
+        .then(data=>{
+            document.getElementById('kpi-products').innerText = data.total_products;
+            document.getElementById('kpi-categories').innerText = data.total_categories;
+            document.getElementById('kpi-revenue').innerText = '₹' + data.total_revenue.toFixed(0);
+            document.getElementById('kpi-rating').innerText = data.avg_rating.toFixed(1);
+        });
+    
+        // ── Sales Trend ─────────────────────
+        fetch('/admin/analytics/api/sales-trend')
+        .then(r=>r.json())
+        .then(data=>{
+            new Chart(document.getElementById('salesTrendChart'), {
+                type: 'line',
+                data: {
+                    labels: data.dates,
+                    datasets: [{
+                        data: data.counts
+                    }]
+                }
+            });
+        });
+    
+        // ── Category ────────────────────────
+        fetch('/admin/analytics/api/category-distribution')
+        .then(r=>r.json())
+        .then(data=>{
+            new Chart(document.getElementById('categoryChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.map(d=>d.category),
+                    datasets: [{
+                        data: data.map(d=>d.count),
+                        backgroundColor: colorList(data.length)
+                    }]
+                }
+            });
+        });
+    
+        // ── Price ──────────────────────────
+        fetch('/admin/analytics/api/price-distribution')
+        .then(r=>r.json())
+        .then(data=>{
+            new Chart(document.getElementById('priceChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(d=>d.range),
+                    datasets: [{
+                        data: data.map(d=>d.count),
+                        backgroundColor: colorList(data.length)
+                    }]
+                }
+            });
+        });
+    
+        // ── Rating ─────────────────────────
+        fetch('/admin/analytics/api/rating-distribution')
+        .then(r=>r.json())
+        .then(data=>{
+            new Chart(document.getElementById('ratingChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.map(d=>d.range),
+                    datasets: [{
+                        data: data.map(d=>d.count),
+                        backgroundColor: colorList(data.length)
+                    }]
+                }
+            });
+        });
+    
+        // ── Top Products ───────────────────
+        fetch('/admin/analytics/api/top-products')
+        .then(r=>r.json())
+        .then(data=>{
+            const tbody = document.getElementById('topProductsBody');
+    
+            tbody.innerHTML = data.map((p,i)=>`
+                <tr>
+                    <td>${i+1}</td>
+                    <td>${p.name}</td>
+                    <td>${p.category || '-'}</td>
+                    <td>₹${p.price}</td>
+                    <td>${p.rating}</td>
+                    <td>${p.rating_count}</td>
+                </tr>
+            `).join('');
+        });
+    
+    });
+    </script>
+
+{% endblock %}
