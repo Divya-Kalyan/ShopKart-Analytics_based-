@@ -94,8 +94,18 @@ def _load_from_csv(filepath):
             rating_cnt  = _clean_count(row.get('rating_count', 0))
             about       = str(row.get('about_product', ''))
             about       = '' if about == 'nan' else about[:2000]
-            img         = str(row.get('img_link', ''))
-            img         = '' if img == 'nan' else img[:1000]
+            img = (
+               row.get('img_link') or
+               row.get('image') or
+               row.get('image_link') or
+               row.get('image_url') or
+               ''
+            )
+
+            img = str(img).strip()
+            img = '' if img.lower() == 'nan' else img[:1000]
+            if 'picsum' in img:
+                img = ''
             plink       = str(row.get('product_link', ''))
             plink       = '' if plink == 'nan' else plink[:1000]
             pid         = str(row.get('product_id', f'CSV{i}'))

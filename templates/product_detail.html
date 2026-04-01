@@ -14,6 +14,7 @@
         justify-content: center;
         overflow: hidden;
         min-height: 340px;
+        
     }
 
     .detail-img-wrap img {
@@ -233,7 +234,8 @@
     function renderProduct(p) {
         /* Image */
         document.getElementById('img-wrap').innerHTML =
-            `<img src="${p.img_link}"
+            `<img src="${p.image || `https://picsum.photos/seed/${p.id}/600/600`}"
+     alt="${p.name}">
                   alt="${p.name}"
                   onerror="this.src='https://picsum.photos/seed/${p.id}/600/600'">`;
 

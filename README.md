@@ -61,3 +61,11 @@ http://127.0.0.1:5000
 * JavaScript (Vanilla)
 
 ---
+## 🚀 How to Run
+
+```bash
+git clone https://github.com/YOUR_USERNAME/shopkart-ecommerce.git
+cd shopkart-ecommerce
+
+pip install -r requirements.txt
+python run.py
